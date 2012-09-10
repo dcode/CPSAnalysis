@@ -18,25 +18,28 @@ class CDFParser( object ):
     def Parse( self, data ):
 
         lines = data.splitlines()
+	cur_line = 0
 
         fields = {}
 
         # Title Data
-        fields['date'] = lines[0][1:9].strip()
+        fields['date'] =      lines[0][1:9].strip()
         fields['orig_name'] = lines[0][10:30].strip()
-        fields['mva_base'] = lines[0][31:37].strip()
-        fields['year'] = lines[0][38:42].strip()
-        fields['season'] = lines[0][43].strip()
-        fields['case_id'] = lines[0][45:73].strip()
+        fields['mva_base'] =  lines[0][31:37].strip()
+        fields['year'] =      lines[0][38:42].strip()
+        fields['season'] =    lines[0][43].strip()
+        fields['case_id'] =   lines[0][45:73].strip()
+	cur_line += 1
         
         # Bus Data Header
-        bus_qty = int(lines[1][17:].split()[0])
+        bus_qty = int(lines[cur_line][17:].split()[0])
+	cur_line += 1
         fields['bus_qty'] = bus_qty
         
         # Bus Data
         busses = []
         
-	for line in lines[2:2+bus_qty]:
+	for line in lines[cur_line:(cur_line+bus_qty)]:
             bus = {}
             bus['num'] = int(line[0:4].strip())
             bus['name'] = line[5:17].strip()
@@ -60,16 +63,19 @@ class CDFParser( object ):
             busses.append(bus)
         
         fields['busses'] = busses
+	cur_line += max(1, bus_qty)
 
-        assert( lines[2+bus_qty].strip() == "-999" )
+        assert( lines[cur_line].strip() == "-999" )
+	cur_line += 1
 
         # Branch Data Header
-        branch_qty = int(lines[3+bus_qty][20:].split()[0])
+        branch_qty = int(lines[cur_line][20:].split()[0])
+	cur_line += 1
         fields['branch_qty'] = branch_qty
 
         # Branch Data
         branches=[]
-        for line in lines[4+bus_qty:(4+bus_qty+branch_qty)]:
+        for line in lines[cur_line:(cur_line+branch_qty)]:
             branch = {}
             branch['tap_bus'] = int(line[0:4].strip())
             branch['z_bus'] = int(line[5:9].strip())
@@ -96,36 +102,37 @@ class CDFParser( object ):
             branches.append(branch)
 
         fields['branches'] = branches
+	cur_line += max(1, branch_qty)
 
-        assert( lines[4+bus_qty+branch_qty].strip() == "-999" )
-
+        assert( lines[cur_line].strip() == "-999" )
+	cur_line += 1
 
 	# Loss Zone data - qty column is fuzzy, but anything after 16 should suffice
-	losszone_qty = int(lines[5+bus_qty+branch_qty][20:].split()[0] )
+	losszone_qty = int(lines[cur_line][20:].split()[0] )
+	cur_line += 1
 
 	# Loss Zone data
 	zones = []
-	for line in lines[6+bus_qty+branch_qty:(5+bus_qty+branch_qty+losszone_qty)]:
+	for line in lines[cur_line:(cur_line+losszone_qty)]:
 	    zone = {}
-	    zone['number'] = int(line[0:2].strip())
+	    zone['number'] = int(line[0:3].strip())
 	    zone['name'] = line[4:14].strip()
 
 	    zones.append(zone)
 
 	fields['loss_zones'] = zones
-	
-	print "Number of Buses: ", bus_qty	
-	print "Number of Branches: ", branch_qty
-	print "Number of Loss Zones: ", losszone_qty 
+	cur_line += max(1, losszone_qty)
 
-        # TODO Add Interchange, and Tie Line Data sections
+	assert( lines[cur_line].strip() == "-99" )
+	cur_line += 1
 
-	# Interchange - qty column is fuzzy, but anything after 16 should suffice
-	interchange_qty = int(lines[7+bus_qty+branch_qty+losszone_qty][17:].split()[0] )
+	# Interchange - qty column is fuzzy, but anything after 25 should suffice
+	interchange_qty = int(lines[cur_line][26:].split()[0] )
+	cur_line += 1
 
 	# Interchange Data
 	interchanges = []
-        for line in lines[8+bus_qty+branch_qty+losszone_qty:(8+bus_qty+branch_qty+losszone_qty+interchange_qty)]:
+        for line in lines[cur_line:(cur_line+interchange_qty)]:
             interchange = {}
             interchange['num'] = int( line[0:2].strip() )
             interchange['slack_bus'] = int( line[4:7].strip() )
@@ -138,8 +145,39 @@ class CDFParser( object ):
             interchanges.append(interchange)
 
 	fields['interchanges'] = interchanges
+	cur_line += max(1, interchange_qty)
+
+	assert( lines[cur_line].strip() == "-9" )
+	cur_line += 1
+
+	# Tie Lines - qty column is fuzzy, but anything after 18 should suffice
+	tieline_qty = int(lines[cur_line][19:].split()[0] )
+
+	# Tie Line Data
+	tielines = []
+        for line in lines[cur_line:(cur_line+tieline_qty)]:
+            tieline = {}
+            tieline['metered_bus'] = int( line[0:4].strip() )
+            tieline['metered_area'] = int( line[6:8].strip() )
+            tieline['non-metered_bus'] = int( line[10:14].strip() )
+            tieline['non-metered_area'] = int( line[16:18].strip() )
+	    tieline['circuit'] = int( line[20:22].strip() )
+
+            tielines.append(tieline)
+
+	fields['tielines'] = tielines
+	cur_line += max(1, tieline_qty)
+
+	assert( lines[cur_line].strip() == "-999" )
+	cur_line += 1
 
         self.fields = fields
+	
+	print "Number of Buses: ", bus_qty	
+	print "Number of Branches: ", branch_qty
+	print "Number of Loss Zones: ", losszone_qty 
+	print "Number of Interchanges: ", interchange_qty
+	print "Number of Tie Lines: ", tieline_qty
        
     def get_graph( self ):
 	pass
