@@ -189,6 +189,6 @@ if __name__ == '__main__':
 	print
 	if len(sys.argv) != 2:
 		print "pass filename of CDF file for parsing."
-
-	parser = CDFParser( sys.argv[1] )
+	else: 
+		parser = CDFParser( sys.argv[1] )
 
