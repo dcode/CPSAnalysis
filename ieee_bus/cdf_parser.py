@@ -13,6 +13,7 @@ class CDFParser( object ):
         if filename and type(filename) == type(""):
             data = open(filename).read()
             self.Parse( data )
+	    print "Done."
 
     def Parse( self, data ):
 
@@ -34,7 +35,8 @@ class CDFParser( object ):
         
         # Bus Data
         busses = []
-        for line in lines[2:2+bus_qty]:
+        
+	for line in lines[2:2+bus_qty]:
             bus = {}
             bus['num'] = int(line[0:4].strip())
             bus['name'] = line[5:17].strip()
@@ -97,9 +99,58 @@ class CDFParser( object ):
 
         assert( lines[4+bus_qty+branch_qty].strip() == "-999" )
 
-        # TODO Add Loss Zone, Interchange, and Tie Line Data sections
+
+	# Loss Zone data - qty column is fuzzy, but anything after 16 should suffice
+	losszone_qty = int(lines[5+bus_qty+branch_qty][20:].split()[0] )
+
+	# Loss Zone data
+	zones = []
+	for line in lines[6+bus_qty+branch_qty:(5+bus_qty+branch_qty+losszone_qty)]:
+	    zone = {}
+	    zone['number'] = int(line[0:2].strip())
+	    zone['name'] = line[4:14].strip()
+
+	    zones.append(zone)
+
+	fields['loss_zones'] = zones
+	
+	print "Number of Buses: ", bus_qty	
+	print "Number of Branches: ", branch_qty
+	print "Number of Loss Zones: ", losszone_qty 
+
+        # TODO Add Interchange, and Tie Line Data sections
+
+	# Interchange - qty column is fuzzy, but anything after 16 should suffice
+	interchange_qty = int(lines[7+bus_qty+branch_qty+losszone_qty][17:].split()[0] )
+
+	# Interchange Data
+	interchanges = []
+        for line in lines[8+bus_qty+branch_qty+losszone_qty:(8+bus_qty+branch_qty+losszone_qty+interchange_qty)]:
+            interchange = {}
+            interchange['num'] = int( line[0:2].strip() )
+            interchange['slack_bus'] = int( line[4:7].strip() )
+            interchange['alt_swing'] = line[9:20]
+            interchange['area_export'] = float( line[20:27].strip() )
+            interchange['area_tolerance'] = float( line[31:35].strip() )
+            interchange['area_code'] = line[38:43].strip()
+            interchange['area_name'] = line[45:75].strip()
+
+            interchanges.append(interchange)
+
+	fields['interchanges'] = interchanges
 
         self.fields = fields
        
     def get_graph( self ):
-        pass
+	pass
+
+
+if __name__ == '__main__':
+	import sys
+	print "Testing CDFParser"
+	print
+	if len(sys.argv) != 2:
+		print "pass filename of CDF file for parsing."
+
+	parser = CDFParser( sys.argv[1] )
+
