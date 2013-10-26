@@ -6,6 +6,9 @@ Parser for IEEE CDF format as defined at:
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
+import networkx as nx
+import numpy as np
+
 class CDFParser( object ):
     fields = {} 
 
@@ -180,8 +183,29 @@ class CDFParser( object ):
 	print "Number of Tie Lines: ", tieline_qty
        
     def get_graph( self ):
-	pass
+	G = nx.Graph()
+	for bus in self.fields['busses']:
+		G.add_node(bus['num'], **bus)
 
+	for branch in self.fields['branches']:
+		Z = np.sqrt( np.power(branch['X'], 2) + np.power(branch['R'], 2) )
+		G.add_edge( branch['tap_bus'], branch['z_bus'], weight=Z, **branch)
+
+	return G
+
+
+def graph_weights( graph, echo=False ):
+	s = [ branch[2]['weight'] for branch in graph.edges(data=True) ]
+
+	if echo:
+		print "Min   : %f" % np.amin(s)
+		print "Max   : %f" % np.amax(s)
+		print "Mean  : %f" % np.mean(s)
+		print "Median: %f" % np.median(s)
+		print "StdDev: %f" % np.std(s)
+		print "Var   : %f" % np.var(s)
+	
+	return s
 
 if __name__ == '__main__':
 	import sys
